@@ -15,5 +15,22 @@
     "preview": {},
     "last_modified": "2021-08-23T09:37:33+08:00",
     "input_file": {}
+  },
+  {
+    "path": "posts/2021-08-23-in-class-exercise-2/",
+    "title": "In-class Exercise 2",
+    "description": "In this hands-on exercise, I learn how to handle geospatial data in R by using sf package.",
+    "author": [
+      {
+        "name": "Xu Pengtai",
+        "url": "https://example.com/norajones"
+      }
+    ],
+    "date": "2021-08-23",
+    "categories": [],
+    "contents": "\nGetting Started\ncreate a list of R packages required\n\n\npackages <- c('sf', 'tidyverse')\nfor (p in packages) {\n  if (!require(p, character.only = T)) {\n    install.packages(p)\n  }\n  library(p, character.only = T)\n}\n\n\n\nDistill is a publication format for scientific and technical writing, native to the web.\nLearn more about using Distill at https://rstudio.github.io/distill.\n\n\n\n",
+    "preview": {},
+    "last_modified": "2021-08-23T11:28:59+08:00",
+    "input_file": "in-class-exercise-2.knit.md"
   }
 ]
