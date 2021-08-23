@@ -1,0 +1,9 @@
+---
+title: "About this blog"
+description: |
+  This blog is about IS415 at SMU.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```

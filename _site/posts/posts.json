@@ -1,0 +1,19 @@
+[
+  {
+    "path": "posts/welcome/",
+    "title": "Welcome to IS415 blog",
+    "description": "Welcome to our new blog, IS415 blog. We hope you enjoy \nreading what we have to say!",
+    "author": [
+      {
+        "name": "Xu Pengtai",
+        "url": "https://example.com/norajones"
+      }
+    ],
+    "date": "2021-08-23",
+    "categories": [],
+    "contents": "\n\n\n\n",
+    "preview": {},
+    "last_modified": "2021-08-23T09:37:33+08:00",
+    "input_file": {}
+  }
+]

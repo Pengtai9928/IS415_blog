@@ -1,0 +1,26 @@
+---
+title: "Welcome to IS415 blog"
+description: |
+  Welcome to our new blog, IS415 blog. We hope you enjoy 
+  reading what we have to say!
+author:
+  - name: Xu Pengtai 
+    url: https://example.com/norajones
+    affiliation: School of Computing and Information Systems
+    affiliation_url: https://example.com/spacelysprokets
+date: 08-23-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+# Learn more about creating blogs with Distill at:
+# https://rstudio.github.io/distill/blog.html
+
+```
+
+
+
