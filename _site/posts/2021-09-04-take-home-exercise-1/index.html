@@ -2108,6 +2108,13 @@ Take-home Exercise
 </div>
 
 <div class="d-article">
+<style type="text/css">
+.main-container {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
 <h2 id="getting-started">Getting Started</h2>
 <ul>
 <li>create a list of R packages required</li>
@@ -2150,7 +2157,7 @@ Take-home Exercise
 </div>
 <ul>
 <li>geospatial: DKI Jarkarta
-<div class="layout-chunk" data-layout="l-body">
+<div class="layout-chunk" data-layout="l-body-outset">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>jarkarta</span> <span class='op'>&lt;-</span> <span class='fu'>st_read</span><span class='op'>(</span><span class='st'>"./data/geospatial/BATAS DESA DESEMBER 2019 DUKCAPIL DKI JAKARTA/BATAS_DESA_DESEMBER_2019_DUKCAPIL_DKI_JAKARTA.shp"</span><span class='op'>)</span>
 </code></pre>
@@ -2195,7 +2202,7 @@ Take-home Exercise
 <h2 id="calculations">Calculations</h2>
 <ul>
 <li>calculate the cumulative confirmed cases per 10000 population
-<div class="layout-chunk" data-layout="l-body">
+<div class="layout-chunk" data-layout="l-body-outset">
 <div class="sourceCode">
 <pre class="sourceCode r">
 <code class="sourceCode r"><span class="va">jarkarta_covid</span> <span class="op">&lt;-</span> <span class="va">jarkarta_covid</span> <span class="op">%&gt;%</span> <span class="fu">mutate</span><span class="op">(</span>CASE_RATE <span class="op">=</span> <span class="va">POSITIF</span> <span class="op">/</span> <span class="op">(</span><span class="va">JUMLAH_PEN</span> <span class="op">/</span> <span class="fl">10000</span><span class="op">)</span><span class="op">)</span></li>
@@ -2262,8 +2269,7 @@ Take-home Exercise
   <span class='fu'>tm_polygons</span><span class='op'>(</span><span class='st'>"CASE_RATE"</span><span class='op'>)</span> <span class='op'>+</span>
   <span class='fu'>tm_facets</span><span class='op'>(</span>by <span class='op'>=</span> <span class='st'>"Date"</span><span class='op'>)</span>
 </code></pre>
-</div>
-<img src="take-home-exercise-1_files/figure-html5/unnamed-chunk-8-1.png" width="624" /></li>
+</div></li>
 </ul>
 </div>
 <ul>
@@ -2274,8 +2280,7 @@ Take-home Exercise
   <span class='fu'>tm_polygons</span><span class='op'>(</span><span class='st'>"DEATH_RATE"</span><span class='op'>)</span> <span class='op'>+</span>
   <span class='fu'>tm_facets</span><span class='op'>(</span>by <span class='op'>=</span> <span class='st'>"Date"</span><span class='op'>)</span>
 </code></pre>
-</div>
-<img src="take-home-exercise-1_files/figure-html5/unnamed-chunk-9-1.png" width="624" /></li>
+</div></li>
 </ul>
 </div>
 <ul>
@@ -2288,7 +2293,6 @@ Take-home Exercise
 <span class="fu">percentmap</span><span class="op">(</span><span class="st">“CASE_RATE”</span>, <span class="va">jarkarta_covid</span><span class="op">)</span> </code>
 </pre>
 </div>
-<p><img src="take-home-exercise-1_files/figure-html5/unnamed-chunk-10-1.png" width="624" /></p>
 </div>
 <ul>
 <li>analytical mapping: cumulative death rate
@@ -2296,8 +2300,7 @@ Take-home Exercise
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='fu'>percentmap</span><span class='op'>(</span><span class='st'>"DEATH_RATE"</span>, <span class='va'>jarkarta_covid</span><span class='op'>)</span>
 </code></pre>
-</div>
-<img src="take-home-exercise-1_files/figure-html5/unnamed-chunk-11-1.png" width="624" /></li>
+</div></li>
 </ul>
 </div>
 <p>Distill is a publication format for scientific and technical writing, native to the web.</p>

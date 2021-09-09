@@ -1,3 +1,11 @@
+<style type="text/css">
+.main-container {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
 ---
 title: "take-home-exercise-1"
 description: |
@@ -10,7 +18,6 @@ output:
   distill::distill_article:
     self_contained: false
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -45,7 +52,7 @@ covid_monthly <- read_excel("data/aspatial/covid_monthly.xlsx")
 ```
 
 - geospatial: DKI Jarkarta
-```{r echo=TRUE, eval=TRUE, R.options=list(width = 70)}
+```{r echo=TRUE, eval=TRUE, layout="l-body-outset"}
 jarkarta <- st_read("./data/geospatial/BATAS DESA DESEMBER 2019 DUKCAPIL DKI JAKARTA/BATAS_DESA_DESEMBER_2019_DUKCAPIL_DKI_JAKARTA.shp")
 jarkarta_sel = jarkarta[,1:9]
 
@@ -68,7 +75,7 @@ jarkarta_covid <- jarkarta_covid[!is.na(jarkarta_covid$OBJECT_ID),]
 
 ## Calculations
 - calculate the cumulative confirmed cases per 10000 population
-```{r echo=TRUE, eval=TRUE}
+```{r echo=TRUE, eval=TRUE, layout="l-body-outset"}
 jarkarta_covid <- jarkarta_covid %>% 
    mutate(CASE_RATE =  POSITIF / (JUMLAH_PEN / 10000))
 
