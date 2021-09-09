@@ -1,3 +1,10 @@
+<style type="text/css">
+.main-container {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
 
 ---
 title: "take-home-exercise-1"
@@ -6,7 +13,7 @@ description: |
 author:
   - name: Xu Pengtai
     url: https://www.linkedin.com/in/xupengtai/
-date: 09-04-2021
+date: 09-09-2021
 output:
   distill::distill_article:
     self_contained: false
