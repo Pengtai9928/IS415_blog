@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = FALSE)
 - create a list of R packages required
 
 ```{r echo=TRUE, eval=TRUE}
-packages <- c('sf', 'tidyverse')
+packages <- c('sf', 'tidyverse', 'tmap')
 for (p in packages) {
   if (!require(p, character.only = T)) {
     install.packages(p)
@@ -29,6 +29,8 @@ for (p in packages) {
   library(p, character.only = T)
 }
 ```
+
+
 
 Distill is a publication format for scientific and technical writing, native to the web.
 

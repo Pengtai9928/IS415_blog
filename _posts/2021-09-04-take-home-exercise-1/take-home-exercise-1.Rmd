@@ -1,0 +1,148 @@
+---
+title: "take-home-exercise-1"
+description: |
+ Geospatial analytics on the development of covid-19 in Jarkarta, Indonesia.
+author:
+  - name: Xu Pengtai
+    url: https://www.linkedin.com/in/xupengtai/
+date: 09-04-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = TRUE,
+  message = TRUE,
+  comment = "##",
+  R.options = list(width = 60)
+)
+```
+
+## Getting Started
+- create a list of R packages required
+
+```{r echo=TRUE, eval=TRUE}
+packages <- c('sf', 'tidyverse', 'tmap')
+for (p in packages) {
+  if (!require(p, character.only = T)) {
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+
+## Data Import
+- aspatial: covid data by month
+```{r echo=TRUE, eval=TRUE}
+setwd("~/IS415_blog/_posts/2021-09-04-take-home-exercise-1")
+library(readxl)
+covid_monthly <- read_excel("data/aspatial/covid_monthly.xlsx")
+```
+
+- geospatial: DKI Jarkarta
+```{r echo=TRUE, eval=TRUE, R.options=list(width = 70)}
+jarkarta <- st_read("./data/geospatial/BATAS DESA DESEMBER 2019 DUKCAPIL DKI JAKARTA/BATAS_DESA_DESEMBER_2019_DUKCAPIL_DKI_JAKARTA.shp")
+jarkarta_sel = jarkarta[,1:9]
+
+```
+
+## Data Wrangling
+- remove outer islands
+```{r echo=TRUE, eval=TRUE}
+jarkarta_main <- jarkarta_sel[!grepl("PULAU", jarkarta_sel$DESA),]
+plot(st_geometry(jarkarta_main))
+```
+
+- left join: covid_monthly + jarkarta_main
+```{r echo=TRUE, eval=TRUE}
+names(covid_monthly)[names(covid_monthly) == 'ID_KEL'] <- 'KODE_DESA'
+jarkarta_covid <- merge(x = covid_monthly, y = jarkarta_main, by = "KODE_DESA", all.x = TRUE)
+jarkarta_covid <- st_as_sf(jarkarta_covid)
+jarkarta_covid <- jarkarta_covid[!is.na(jarkarta_covid$OBJECT_ID),]
+```
+
+## Calculations
+- calculate the cumulative confirmed cases per 10000 population
+```{r echo=TRUE, eval=TRUE}
+jarkarta_covid <- jarkarta_covid %>% 
+   mutate(CASE_RATE =  POSITIF / (JUMLAH_PEN / 10000))
+
+cumulative_death_by_month <- aggregate(jarkarta_covid$CASE_RATE, by=list(Category=jarkarta_covid$Date), FUN=mean)
+names(cumulative_death_by_month) <- c("Date", "Cumulative Case Rates")
+print(cumulative_death_by_month)
+```
+
+- calculate the cumulative death by month
+```{r echo=TRUE, eval=TRUE}
+jarkarta_covid <- jarkarta_covid %>% 
+   mutate(DEATH_RATE = Meninggal / (JUMLAH_PEN / 10000))
+
+cumulative_death_by_month <- aggregate(jarkarta_covid$DEATH_RATE, by=list(Category=jarkarta_covid$Date), FUN=mean)
+names(cumulative_death_by_month) <- c("Date", "Cumulative Death Rates")
+print(cumulative_death_by_month)
+```
+
+## Plots
+
+- thematic mapping: cumulative confirmed cases rate
+```{r echo=TRUE, eval=TRUE}
+
+tm_shape(jarkarta_covid) +
+    tm_polygons("CASE_RATE") +
+    tm_facets(by = "Date")
+```
+
+- thematic mapping: cumulative death rate
+```{r echo=TRUE, eval=TRUE}
+
+tm_shape(jarkarta_covid) +
+    tm_polygons("DEATH_RATE") +
+    tm_facets(by = "Date")
+```
+
+- analytical mapping: cumulative confirmed cases rate
+```{r echo=TRUE, eval=TRUE}
+
+get.var <- function(vname,df) {
+  v <- df[vname] %>% st_set_geometry(NULL)
+  v <- unname(v[,1])
+  return(v)
+}
+# percent map 
+percentmap <- function(vnam, df, legtitle=NA, mtitle="Percentile Map"){
+  percent <- c(0, .01, .1, .5, .9, .99, 1)
+  var <- get.var(vnam,df)
+  bperc <- quantile(var, percent)
+  tm_shape(df) +
+  tm_polygons() +
+  tm_shape(df) +
+     tm_fill(vnam,title=legtitle,
+             breaks=bperc,
+             palette="Blues",
+          labels = c("< 1%", "1% - 10%", "10% - 50%", "50% - 90%", "90% - 99%", "> 99%"))  +
+  tm_borders() +
+  tm_layout(title = mtitle, 
+            title.position = c("right", "bottom")) +
+  tm_facets(by = "Date")
+}
+
+percentmap("CASE_RATE", jarkarta_covid)
+```
+
+
+- analytical mapping: cumulative death rate
+```{r echo=TRUE, eval=TRUE}
+
+percentmap("DEATH_RATE", jarkarta_covid)
+```
+
+Distill is a publication format for scientific and technical writing, native to the web.
+
+Learn more about using Distill at <https://rstudio.github.io/distill>.
+
+
