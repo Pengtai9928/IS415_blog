@@ -11,9 +11,13 @@ output:
     self_contained: false
 ---
 
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      error = FALSE,
+                      fig.retina = 3)
 ```
 
 ## Getting Started
