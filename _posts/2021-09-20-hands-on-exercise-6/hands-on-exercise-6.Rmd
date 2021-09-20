@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Getting Started
-- create a list of R packages required
+create a list of R packages required
 
 ```{r echo=TRUE, eval=TRUE}
 packages <- c('sf', 'spdep', 'tmap', 'tidyverse')
@@ -62,7 +62,7 @@ wm_q <- poly2nb(hunan, queen=TRUE)
 summary(wm_q)
 ```
 
-- Get neighbour info of a particular county
+Get neighbour info of a particular county
 ```{r}
 
 # get neighbour
@@ -84,7 +84,7 @@ summary(wm_r)
 
 ## Visualising contiguity weights
 
-- create coordinates
+create coordinates
 
 * note: longitude before latitude (x before y)
 ```{r}
@@ -94,12 +94,12 @@ coords <- cbind(longitude, latitude)
 head(coords)
 ```
 
-- Plotting Queen contiguity based neighbours maps
+Plotting Queen contiguity based neighbours maps
 ```{r}
 plot(hunan$geometry, border="lightgrey")
 plot(wm_q, coords, pch = 19, cex = 0.6, add = TRUE, col= "red")
 ```
-- Comparing Queen and Rook methods
+Comparing Queen and Rook methods
 ```{r}
 par(mfrow=c(1,2))
 plot(hunan$geometry, border="lightgrey")
@@ -111,7 +111,7 @@ plot(wm_r, coords, pch = 19, cex = 0.6, add = TRUE, col = "red", main="Rook Cont
 ## Computing distance based neighbours
 
 ### Determine the cut-off distance
-- make use of knearneigh() of spdep
+make use of knearneigh() of spdep
 
 ```{r}
 k1 <- knn2nb(knearneigh(coords))
@@ -119,18 +119,18 @@ k1dists <- unlist(nbdists(k1, coords, longlat = TRUE))
 summary(k1dists)
 ```
 
-- Computing fixed distance weight matrix
+Computing fixed distance weight matrix
 ```{r}
 wm_d62 <- dnearneigh(coords, 0, 62, longlat = TRUE)
 wm_d62
 ```
 
-- Another way to display the structure of the weight matrix is to combine table() and card() of spdep.
+Another way to display the structure of the weight matrix is to combine table() and card() of spdep.
 ```{r}
 table(hunan$County, card(wm_d62))
 ```
 
-- The red lines show the links of 1st nearest neighbours and the black lines show the links of neighbours within the cut-off distance of 62km.
+The red lines show the links of 1st nearest neighbours and the black lines show the links of neighbours within the cut-off distance of 62km.
 ```{r}
 par(mfrow=c(1,2))
 plot(hunan$geometry, border="lightgrey")
@@ -141,7 +141,7 @@ plot(wm_d62, coords, add=TRUE, pch = 19, cex = 0.6, main="Distance link")
 
 ## Computing adaptive distance weight matrix
 
-- adaptive distance means fixed number of neighbours in this case
+adaptive distance means fixed number of neighbours in this case
 ```{r}
 knn6 <- knn2nb(knearneigh(coords, k=6))
 knn6
@@ -154,7 +154,7 @@ plot(knn6, coords, pch = 19, cex = 0.6, add = TRUE, col = "red")
 
 ## Weights based on IDW
 
-- based on the inverse distance method (longer distance -> lower weights)
+based on the inverse distance method (longer distance -> lower weights)
 ```{r}
 dist <- nbdists(wm_q, coords, longlat = TRUE)
 ids <- lapply(dist, function(x) 1/(x))
@@ -162,8 +162,8 @@ ids
 ```
 
 ## Row-standardised weights matrix
-- 'W': each neighbouring polygon assigned the same weight (may be biased against polygons on the edge)
-- 'zero policy': allows for lists of non=neighbours
+'W': each neighbouring polygon assigned the same weight (may be biased against polygons on the edge)
+'zero policy': allows for lists of non=neighbours
 
 ```{r}
 rswm_q <- nb2listw(wm_q, style="W", zero.policy = TRUE)
@@ -172,7 +172,7 @@ rswm_q
 ## Application of Spatial Weight Matrix
 
 ### Spatial lag with row-standardized weights
-- average of neighbouring polygons
+average of neighbouring polygons
 ```{r}
 
 # calculate lag
