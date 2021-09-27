@@ -187,7 +187,7 @@ nci <- moran.plot(hunan$GDPPC, rswm_q,
                   ylab="Spatially Lag GDPPC 2012")
 ```
 
-- Plotting Moran scatterplot with standardised variable
+Plotting Moran scatterplot with standardised variable
 
 Centering is done by subtracting the mean (omitting NAs) the corresponding columns, and scaling is done by dividing the (centered) variable by their standard deviations.
 ```{r}
@@ -198,7 +198,7 @@ nci2 <- moran.plot(hunan$Z.GDPPC, rswm_q,
                    ylab="Spatially Lag z-GDPPC 2012")
 ```
 
-- Preparing LISA map classes
+Preparing LISA map classes
 ```{r}
 quadrant <- vector(mode="numeric",length=nrow(localMI))
 DV <- hunan$GDPPC - mean(hunan$GDPPC)     
@@ -246,7 +246,7 @@ k1 <- knn2nb(knearneigh(coords))
 k1dists <- unlist(nbdists(k1, coords, longlat = TRUE))
 summary(k1dists)
 ```
-- set cut-off distance as 62 to ensure that each county has at least 1 neighbour
+set cut-off distance as 62 to ensure that each county has at least 1 neighbour
 
 ### Computing fixed distance weight matrix
 ```{r}
@@ -264,7 +264,7 @@ summary(knn_lw)
 
 ### Computing Gi statistics and Mapping Gi values
 
-- Using fixed distance
+Using fixed distance
 ```{r}
 fips <- order(hunan$County)
 gi.fixed <- localG(hunan$GDPPC, wm62_lw)
@@ -286,7 +286,7 @@ Gimap <-tm_shape(hunan.gi) +
 tmap_arrange(gdppc, Gimap, asp=1, ncol=2)
 ```
 
-- Using adaptive distance
+Using adaptive distance
 ```{r}
 fips <- order(hunan$County)
 gi.adaptive <- localG(hunan$GDPPC, knn_lw)
