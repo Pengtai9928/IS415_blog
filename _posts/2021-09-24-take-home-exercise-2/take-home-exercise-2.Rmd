@@ -1,0 +1,472 @@
+---
+title: "take-home-exercise-2"
+description: |
+  Analysing airbnb listings in Singapore and the impact of covid-19 on them.
+author:
+  - name: Xu Pengtai
+    url: https://www.linkedin.com/in/xupengtai/
+date: 09-24-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      error = FALSE,
+                      fig.retina = 3)
+```
+
+## Getting Started
+- create a list of R packages required
+
+```{r echo=TRUE, eval=TRUE}
+packages <- c('maptools', 'sf', 'raster', 'spatstat', 'tidyverse', 'tmap', 'plotly', 'ggthemes')
+for (p in packages) {
+  if (!require(p, character.only = T)) {
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Datasets
+
+1. Airbnb: June 2019 and June 2021
+2. onemapsgapi: hotels, tourist attractions, mrt services
+3. sg outline
+
+```{r echo=TRUE, eval=TRUE}
+# sg outline
+sg_sf <- st_read(dsn = 'data/subzone_sg',
+                   layer = "MP14_SUBZONE_WEB_PL")
+sg <- as_Spatial(sg_sf)
+sg_sp <- as(sg, "SpatialPolygons")
+sg_owin <- as(sg_sp, "owin")
+plot(sg_owin)
+```
+
+
+## Section A: Airbnb Distribution in 2019
+In this section, you are tasked to investigate if the distribution of Airbnb listings are affected by location factors such as near to existing hotels, MRT services and tourist attractions. For the purpose of this analysis, Airbnb listings as at June 2019 should be used.
+
+1. Exploratory Spatial Data Analysis
+
+Derive kernel density maps of Airbnb listings, hotels, MRT services, and tourist attractions.
+
+```{r eval=TRUE}
+# listing
+setwd('/Users/pengtaixu/IS415_blog/')
+abb19 <- read_csv("./_posts/2021-09-24-take-home-exercise-2/data/airbnb/listings_2019.csv")
+abb19_sf <- st_as_sf(abb19, 
+                    coords = c("longitude",
+                               "latitude"),
+                    crs = 4326) %>%
+  st_transform(crs=3414) 
+abb19 <- as_Spatial(abb19_sf)
+abb19_sp <- as(abb19, "SpatialPoints")
+abb19_ppp <- as(abb19_sp, "ppp")
+
+abb19_ppp = abb19_ppp[sg_owin]
+
+abb19_ppp.km <- rescale(abb19_ppp, 1000, "km")
+kde_abb19.bw <- density(abb19_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_abb19.bw)
+```
+
+
+```{r}
+# hotels
+hotels <- read_csv("_posts/2021-09-24-take-home-exercise-2/data/OneMap_Data/hotels.csv")
+hotels_sf <- st_as_sf(hotels, 
+                    coords = c("Lng",
+                               "Lat"),
+                    crs = 4326) %>%
+  st_transform(crs=3414) 
+hotels <- as_Spatial(hotels_sf)
+hotels_sp <- as(hotels, "SpatialPoints")
+hotels_ppp <- as(hotels_sp, "ppp")
+
+hotels_ppp = hotels_ppp[sg_owin]
+
+hotels_ppp.km <- rescale(hotels_ppp, 1000, "km")
+kde_hotels.bw <- density(hotels_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_hotels.bw)
+
+# mrt
+mrt_sf <- st_read(dsn = 'data/OneMap_Data/mrt',
+                   layer = "MRTLRTStnPtt")
+mrt <- read_csv("_posts/2021-09-24-take-home-exercise-2/data/OneMap_Data/mrt.csv")
+mrt_sf <- st_as_sf(mrt, 
+                    coords = c("Lng",
+                               "Lat"),
+                    crs = 4326) %>%
+  st_transform(crs=3414) 
+mrt <- as_Spatial(mrt_sf)
+mrt_sp <- as(mrt, "SpatialPoints")
+mrt_ppp <- as(mrt_sp, "ppp")
+
+mrt_ppp = mrt_ppp[sg_owin]
+
+mrt_ppp.km <- rescale(mrt_ppp, 1000, "km")
+kde_mrt.bw <- density(mrt_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_mrt.bw)
+
+# tourist attractions
+tour <- read_csv("_posts/2021-09-24-take-home-exercise-2/data/OneMap_Data/tourism.csv")
+tour <- tour[complete.cases(tour[,c("LONGTITUDE","LATITUDE")]), ] # remove na
+tour_sf <- st_as_sf(tour, 
+                    coords = c("LONGTITUDE",
+                               "LATITUDE"),
+                    crs = 4326) %>%
+  st_transform(crs=3414) 
+tour <- as_Spatial(tour_sf)
+tour_sp <- as(tour, "SpatialPoints")
+tour_ppp <- as(tour_sp, "ppp")
+
+tour_ppp = tour_ppp[sg_owin]
+
+tour_ppp.km <- rescale(tour_ppp, 1000, "km")
+kde_tour.bw <- density(tour_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_tour.bw)
+
+```
+
+Using appropriate tmap functions, display the kernel density maps on openstreetmap of Singapore. Describe the spatial patterns revealed by the kernel density maps. Highlight the advantage of kernel density map over point map.
+
+```{r eval=TRUE}
+# listing
+gridded_kde_abb19_bw <- as.SpatialGridDataFrame.im(kde_abb19.bw)
+kde_abb19_bw_raster <- raster(gridded_kde_abb19_bw)
+tm_shape(kde_abb19_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+```
+
+
+```{r}
+
+# hotels
+gridded_kde_hotels_bw <- as.SpatialGridDataFrame.im(kde_hotels.bw)
+kde_hotels_bw_raster <- raster(gridded_kde_hotels_bw)
+tm_shape(kde_hotels_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+# mrt
+gridded_kde_mrt_bw <- as.SpatialGridDataFrame.im(kde_mrt.bw)
+kde_mrt_bw_raster <- raster(gridded_kde_mrt_bw)
+tm_shape(kde_mrt_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+# tourist attractions
+gridded_kde_tour_bw <- as.SpatialGridDataFrame.im(kde_tour.bw)
+kde_tour_bw_raster <- raster(gridded_kde_tour_bw)
+tm_shape(kde_tour_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+```
+
+Kernel density map gives additional information on the clustering of the points compared to simple point analysis. 
+
+
+2. Second-order Spatial Point Patterns Analysis
+
+With reference to the spatial point patterns observed in (1):
+
+Formulate the null hypothesis and alternative hypothesis and select the confidence level.
+
+Ho = The distribution of airbnb listings in June 2019 in Singapore are randomly distributed.
+
+H1= The distribution of airbnb listings in June 2019 in Singapore are not randomly distributed.
+
+The 95% confident interval will be used.
+
+
+Perform the test by using appropriate Second order spatial point patterns analysis technique.
+```{r eval = TRUE }
+clarkevans.test(abb19_ppp,
+                correction="none",
+                clipregion="sg_owin",
+                alternative=c("clustered"),
+                nsim=99)
+```
+
+With reference to the analysis results, draw statistical conclusions.
+
+With the p value = 0.01 , we reject the null hypothesis and conclude that the distribution of airbnb listings in June 2019 in Singapore are not randomly distributed. Factors involved could be distance to hotels/mrts/tourist attractions. In addition, we do see the overlap of dense areas in the kernel density map of airbnb listings and hotels/tourist attractions. 
+
+## Section B: Impact of COVID-19
+In this section, you are required to analyse the impact of COVID-19 on Airbnb business in Singapore by comparing Airbnb listings data on June 2019 and June 2021.
+
+3. Exploratory Spatial Data Analysis
+
+Derive kernel density maps of all Airbnb listings and Airbnb by room type as at June 2019 and June 2021,
+```{r eval = TRUE}
+## June 2019
+unique(abb19$room_type)
+
+# Private room
+private19 <- abb19[abb19$room_type=="Private room",]
+private19_sp <- as(private19, "SpatialPoints")
+private19_ppp <- as(private19_sp, "ppp")
+
+private19_ppp = private19_ppp[sg_owin]
+
+private19_ppp.km <- rescale(private19_ppp, 1000, "km")
+kde_private19.bw <- density(private19_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_private19.bw)
+
+setwd('/Users/pengtaixu/IS415_blog/')
+abb21 <- read_csv("_posts/2021-09-24-take-home-exercise-2/data/airbnb/listings_2021.csv")
+abb21_sf <- st_as_sf(abb21, 
+                    coords = c("longitude",
+                               "latitude"),
+                    crs = 4326) %>%
+  st_transform(crs=3414) 
+abb21 <- as_Spatial(abb21_sf)
+
+unique(abb21$room_type)
+
+# Private room
+private21 <- abb21[abb21$room_type=="Private room",]
+private21_sp <- as(private21, "SpatialPoints")
+private21_ppp <- as(private21_sp, "ppp")
+
+private21_ppp = private21_ppp[sg_owin]
+
+private21_ppp.km <- rescale(private21_ppp, 1000, "km")
+kde_private21.bw <- density(private21_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+#plot(kde_private21.bw)
+```
+
+
+```{r}
+  
+# Entire home/apt
+entire19 <- abb19[abb19$room_type=="Entire home/apt",]
+entire19_sp <- as(entire19, "SpatialPoints")
+entire19_ppp <- as(entire19_sp, "ppp")
+
+entire19_ppp = entire19_ppp[sg_owin]
+
+entire19_ppp.km <- rescale(entire19_ppp, 1000, "km")
+kde_entire19.bw <- density(entire19_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_entire19.bw)
+
+# Shared room
+shared19 <- abb19[abb19$room_type=="Shared room",]
+shared19_sp <- as(shared19, "SpatialPoints")
+shared19_ppp <- as(shared19_sp, "ppp")
+
+shared19_ppp = shared19_ppp[sg_owin]
+
+shared19_ppp.km <- rescale(shared19_ppp, 1000, "km")
+kde_shared19.bw <- density(shared19_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_shared19.bw)
+
+## June 2021
+  
+# Entire home/apt
+entire21 <- abb21[abb21$room_type=="Entire home/apt",]
+entire21_sp <- as(entire21, "SpatialPoints")
+entire21_ppp <- as(entire21_sp, "ppp")
+
+entire21_ppp = entire21_ppp[sg_owin]
+
+entire21_ppp.km <- rescale(entire21_ppp, 1000, "km")
+kde_entire21.bw <- density(entire21_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_entire21.bw)
+
+# Shared room
+shared21 <- abb21[abb21$room_type=="Shared room",]
+shared21_sp <- as(shared21, "SpatialPoints")
+shared21_ppp <- as(shared21_sp, "ppp")
+
+shared21_ppp = shared21_ppp[sg_owin]
+
+shared21_ppp.km <- rescale(shared21_ppp, 1000, "km")
+kde_shared21.bw <- density(shared21_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_shared21.bw)
+
+# Hotel room
+hotel21 <- abb21[abb21$room_type=="Hotel room",]
+hotel21_sp <- as(hotel21, "SpatialPoints")
+hotel21_ppp <- as(hotel21_sp, "ppp")
+
+hotel21_ppp = hotel21_ppp[sg_owin]
+
+hotel21_ppp.km <- rescale(hotel21_ppp, 1000, "km")
+kde_hotel21.bw <- density(hotel21_ppp.km,
+                              sigma=bw.diggle,
+                              edge=TRUE,
+                            kernel="gaussian") 
+plot(kde_hotel21.bw)
+
+```
+
+
+
+Using appropriate tmap functions, display the kernel density maps on openstreetmap of Singapore,
+
+```{r eval = TRUE}
+## June 2019 
+
+# Private room
+kde_private19.bw
+gridded_kde_private19_bw <- as.SpatialGridDataFrame.im(kde_private19.bw)
+kde_private19_bw_raster <- raster(gridded_kde_private19_bw)
+tm_shape(kde_private19_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+## June 2021
+
+# Private room
+kde_private21.bw
+gridded_kde_private21_bw <- as.SpatialGridDataFrame.im(kde_private21.bw)
+kde_private21_bw_raster <- raster(gridded_kde_private21_bw)
+tm_shape(kde_private21_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+```
+
+
+```{r}
+
+# Entire home/apt
+kde_entire19.bw
+gridded_kde_entire19_bw <- as.SpatialGridDataFrame.im(kde_entire19.bw)
+kde_entire19_bw_raster <- raster(gridded_kde_entire19_bw)
+tm_shape(kde_entire19_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+# Shared room
+kde_shared19.bw
+gridded_kde_shared19_bw <- as.SpatialGridDataFrame.im(kde_shared19.bw)
+kde_shared19_bw_raster <- raster(gridded_kde_shared19_bw)
+tm_shape(kde_shared19_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+
+## June 2021 
+
+# Entire home/apt
+kde_entire21.bw
+gridded_kde_entire21_bw <- as.SpatialGridDataFrame.im(kde_entire21.bw)
+kde_entire21_bw_raster <- raster(gridded_kde_entire21_bw)
+tm_shape(kde_entire21_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+# Shared room
+kde_shared21.bw
+gridded_kde_shared21_bw <- as.SpatialGridDataFrame.im(kde_shared21.bw)
+kde_shared21_bw_raster <- raster(gridded_kde_shared21_bw)
+tm_shape(kde_shared21_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+# Hotel room
+kde_hotel21.bw
+gridded_kde_hotel21_bw <- as.SpatialGridDataFrame.im(kde_hotel21.bw)
+kde_hotel21_bw_raster <- raster(gridded_kde_hotel21_bw)
+tm_shape(kde_hotel21_bw_raster) + 
+  tm_raster("v") +
+  tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
+
+
+```
+
+
+
+Describe the spatial patterns reveal by the kernel density maps.
+
+
+
+4. Second-order Spatial Point Patterns Analysis
+
+With reference to the spatial point patterns observed in (3):
+
+Formulate the null hypothesis and alternative hypothesis and select the confidence level.
+We can form null hypothesis on both 2019 and 2021 airbnb listings by room type. For example, we can form the following two set of hypothesis to have an understanding on the effect of covid-19 on the distribution of the listing of private rooms available on airbnb. 
+
+Set 1:
+Ho = The distribution of airbnb private room listings in June 2019 in Singapore are randomly distributed.
+H1= The distribution of airbnb private listings in June 2019 in Singapore are not randomly distributed.
+The 95% confident interval will be used.
+
+```{r eval=TRUE}
+clarkevans.test(private19_ppp,
+                correction="none",
+                clipregion="sg_owin",
+                alternative=c("clustered"),
+                nsim=99)
+```
+
+Set 2:
+Ho = The distribution of airbnb private room listings in June 2021 in Singapore are randomly distributed.
+H1= The distribution of airbnb private listings in June 2021 in Singapore are not randomly distributed.
+The 95% confident interval will be used.
+
+```{r eval=TRUE}
+clarkevans.test(private21_ppp,
+                correction="none",
+                clipregion="sg_owin",
+                alternative=c("clustered"),
+                nsim=99)
+```
+
+With reference to the analysis results, draw statistical conclusions.
+Set 1: R = 0.38104, p-value = 0.01
+Set 2: R = 0.32079, p-value = 0.01
+While both sets have the same p-value of 0.01, set 2 has a smaller Nearest Neighbour Ratio. This smaller value means that the private room listings on airbnb in 2021 
+have got more clustered compared to that before covid-19 in 2019. 
+We can compare the other room types in a similar manner. 
+
+
+
+Distill is a publication format for scientific and technical writing, native to the web.
+
+Learn more about using Distill at <https://rstudio.github.io/distill>.
+
+
