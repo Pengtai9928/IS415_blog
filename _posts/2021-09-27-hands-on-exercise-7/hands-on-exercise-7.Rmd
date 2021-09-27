@@ -1,7 +1,7 @@
 ---
 title: "hands-on-exercise-7"
 description: |
-  A short description of the post.
+  Measures of Spatial Autocorrelation.
 author:
   - name: Xu Pengtai
     url: https://www.linkedin.com/in/xupengtai/
