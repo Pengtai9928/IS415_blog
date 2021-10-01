@@ -5,7 +5,7 @@ description: |
 author:
   - name: Xu Pengtai
     url: https://www.linkedin.com/in/xupengtai/
-date: 09-24-2021
+date: 10-01-2021
 output:
   distill::distill_article:
     self_contained: false
@@ -47,14 +47,14 @@ sg_sf <- st_read(dsn = 'data/subzone_sg',
 sg <- as_Spatial(sg_sf)
 sg_sp <- as(sg, "SpatialPolygons")
 sg_owin <- as(sg_sp, "owin")
-plot(sg_owin)
+plot(sg_owin, main="Outline of SG")
 ```
 
 
 ## Section A: Airbnb Distribution in 2019
 In this section, you are tasked to investigate if the distribution of Airbnb listings are affected by location factors such as near to existing hotels, MRT services and tourist attractions. For the purpose of this analysis, Airbnb listings as at June 2019 should be used.
 
-1. Exploratory Spatial Data Analysis
+### 1. Exploratory Spatial Data Analysis
 
 Derive kernel density maps of Airbnb listings, hotels, MRT services, and tourist attractions.
 
@@ -78,7 +78,7 @@ kde_abb19.bw <- density(abb19_ppp.km,
                               sigma=bw.diggle,
                               edge=TRUE,
                             kernel="gaussian") 
-plot(kde_abb19.bw)
+plot(kde_abb19.bw, main="Kernel Density Map of Airbnb Listings")
 ```
 
 
@@ -158,6 +158,8 @@ tm_shape(kde_abb19_bw_raster) +
   tm_raster("v") +
   tm_layout(legend.position = c("right", "bottom"), frame = FALSE)
 ```
+Airbnb listings in 2019 are mostly clustered at south of Singapore
+Kernel density map gives additional information on the clustering of the points compared to simple point analysis. 
 
 
 ```{r}
@@ -185,10 +187,8 @@ tm_shape(kde_tour_bw_raster) +
 
 ```
 
-Kernel density map gives additional information on the clustering of the points compared to simple point analysis. 
 
-
-2. Second-order Spatial Point Patterns Analysis
+### 2. Second-order Spatial Point Patterns Analysis
 
 With reference to the spatial point patterns observed in (1):
 
@@ -200,8 +200,8 @@ H1= The distribution of airbnb listings in June 2019 in Singapore are not random
 
 The 95% confident interval will be used.
 
-
 Perform the test by using appropriate Second order spatial point patterns analysis technique.
+
 ```{r eval = TRUE }
 clarkevans.test(abb19_ppp,
                 correction="none",
@@ -217,9 +217,11 @@ With the p value = 0.01 , we reject the null hypothesis and conclude that the di
 ## Section B: Impact of COVID-19
 In this section, you are required to analyse the impact of COVID-19 on Airbnb business in Singapore by comparing Airbnb listings data on June 2019 and June 2021.
 
-3. Exploratory Spatial Data Analysis
+### 3. Exploratory Spatial Data Analysis
 
 Derive kernel density maps of all Airbnb listings and Airbnb by room type as at June 2019 and June 2021,
+
+
 ```{r eval = TRUE}
 ## June 2019
 unique(abb19$room_type)
@@ -368,6 +370,10 @@ tm_shape(kde_private21_bw_raster) +
 
 ```
 
+Describe the spatial patterns reveal by the kernel density maps.
+
+The main clusters of Airbnb private rooms remained in the south of Singapore after covid.
+
 
 ```{r}
 
@@ -419,11 +425,7 @@ tm_shape(kde_hotel21_bw_raster) +
 
 
 
-Describe the spatial patterns reveal by the kernel density maps.
-
-
-
-4. Second-order Spatial Point Patterns Analysis
+### 4. Second-order Spatial Point Patterns Analysis
 
 With reference to the spatial point patterns observed in (3):
 
@@ -464,7 +466,7 @@ have got more clustered compared to that before covid-19 in 2019.
 We can compare the other room types in a similar manner. 
 
 
-
+---
 Distill is a publication format for scientific and technical writing, native to the web.
 
 Learn more about using Distill at <https://rstudio.github.io/distill>.
