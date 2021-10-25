@@ -1,0 +1,180 @@
+---
+title: "hands-on-exercise-10"
+description: |
+  Spatial Interaction Models using GLM.
+author:
+  - name: Xu Pengtai
+    url: https://www.linkedin.com/in/xupengtai/
+date: 10-25-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      error = FALSE,
+                      fig.retina = 3)
+```
+
+## Getting Started
+create a list of R packages required
+
+```{r echo=TRUE, eval=TRUE}
+packages <- c('tmap', 'tidyverse',
+             'sp', 'caret',
+             'geojsonio', 'reshape2', 
+             'broom')
+for (p in packages) {
+  if (!require(p, character.only = T)) {
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+
+
+
+library(sf)
+library(stplanr)
+
+```
+
+## Import geospatial data into r environment
+```{r echo=TRUE, eval=TRUE}
+Aus <- geojson_read("https://www.dropbox.com/s/0fg80nzcxcsybii/GCCSA_2016_AUST_New.geojson?raw=1", what = "sp")
+Ausdata <- Aus@data
+AusSF <- st_as_sf(Aus) %>% 
+  st_set_crs(4283) 
+st_make_valid(AusSF)
+```
+
+
+Display data table
+```{r echo=TRUE, eval=TRUE}
+AusSF1 <- AusSF[order(AusSF$GCCSA_CODE),]
+head(AusSF1, 10)
+Aus <- as(AusSF1, "Spatial")
+```
+
+## Calculate a distance matrix
+```{r echo=TRUE, eval=TRUE}
+# re-project to projected coordinate system
+AusProj <- spTransform(Aus,"+init=epsg:3112")
+
+# compute distance matrix
+dist <- spDists(AusProj)
+
+# convert distance matrix into distance pair list
+distPair <- melt(dist)
+
+# convert unit of measurement from metres to km
+distPair$value <- distPair$value / 1000
+head(distPair, 10)
+```
+
+## Import interaction data into r environment
+```{r echo=TRUE, eval=TRUE}
+mdata <- read_csv("https://www.dropbox.com/s/wi3zxlq5pff1yda/AusMig2011.csv?raw=1",col_names = TRUE)
+glimpse(mdata)
+```
+
+## Combine the imported migration data
+```{r echo=TRUE, eval=TRUE}
+mdata$FlowNoIntra <- ifelse(mdata$Orig_code == mdata$Dest_code,0,mdata$Flow)
+mdata$offset <- ifelse(mdata$Orig_code == mdata$Dest_code,0.0000000001,1)
+mdata$dist <- distPair$value 
+mdata$dist <- ifelse(mdata$dist == 0,5,mdata$dist)
+glimpse(mdata)
+```
+
+## Visualise with desire line
+```{r echo=TRUE, eval=TRUE}
+mdatasub <- mdata[mdata$Orig_code!=mdata$Dest_code,]
+mdatasub_skinny <- mdatasub[,c(2,4,5)]
+travel_network <- od2line(flow = mdatasub_skinny, 
+                          zones = Aus)
+travel_networkwgs <- spTransform(travel_network,"+init=epsg:4326" )
+AusWGS <- spTransform(Aus,"+init=epsg:4326" )
+w <- mdatasub_skinny$Flow / max(mdatasub_skinny$Flow) * 10
+#plot(travel_networkwgs, lwd = w)
+#plot(AusWGS, add=T)
+```
+
+
+## Build spatial ineraction models
+
+### Unconstrained spatial interaction model
+```{r echo=TRUE, eval=TRUE}
+uncosim <- glm(Flow ~ log(vi1_origpop)+log(wj3_destmedinc)+log(dist), na.action = na.exclude, family = poisson(link = "log"), data = mdatasub)
+
+# fit the model
+mdatasub$fitted <- fitted(uncosim)
+mdatasubmat2 <- dcast(mdatasub, Orig_code ~ Dest_code, sum, value.var = "fitted", margins=c("Orig_code", "Dest_code"))
+mdatasubmat <- dcast(mdatasub, Orig_code ~ Dest_code, sum, value.var = "Flow", margins=c("Orig_code", "Dest_code"))
+ggplot(data=mdatasub, 
+       aes(y = `Flow`, 
+           x = `fitted`))+
+  geom_point(color="black", fill="light blue")
+postResample(mdatasub$Flow,mdatasub$fitted)
+```
+
+R squre value at 0.32. It seems that the uncontrained model failed to fit the empirical data well.
+
+### Origin spatial interaction model
+```{r echo=TRUE, eval=TRUE}
+origSim <- glm(Flow ~ Orig_code+log(wj3_destmedinc)+log(dist)-1, na.action = na.exclude, family = poisson(link = "log"), data = mdatasub)
+mdatasub$origSimFitted <- round(fitted(origSim),0)
+mdatasubmat3 <- dcast(mdatasub, Orig_code ~ Dest_code, sum, value.var = "origSimFitted", margins=c("Orig_code", "Dest_code"))
+
+# fit the model
+ggplot(data=mdatasub, 
+       aes(y = `Flow`, 
+           x = `origSimFitted`))+
+  geom_point(color="black", fill="light blue")
+postResample(mdatasub$Flow,mdatasub$origSimFitted)
+```
+
+R value improved substantially from 0.32 to 0.43 using the origin constrained model.
+
+### Destination spatial interaction model
+```{r echo=TRUE, eval=TRUE}
+destSim <- glm(Flow ~ Dest_code+log(vi1_origpop)+log(dist)-1, na.action = na.exclude, family = poisson(link = "log"), data = mdatasub)
+mdatasub$destSimFitted <- round(fitted(destSim),0)
+mdatasubmat6 <- dcast(mdatasub, Orig_code ~ Dest_code, sum, value.var = "destSimFitted", margins=c("Orig_code", "Dest_code"))
+
+# fit the model
+ggplot(data=mdatasub, 
+       aes(y = `Flow`, 
+           x = `destSimFitted`))+
+  geom_point(color="black", fill="light blue")
+postResample(mdatasub$Flow,mdatasub$destSimFitted)
+```
+
+R square improved to 0.65 using the destination constrained model.
+
+### Doubly spatial interaction model
+```{r echo=TRUE, eval=TRUE}
+doubSim <- glm(Flow ~ Orig_code+Dest_code+log(dist), na.action = na.exclude, family = poisson(link = "log"), data = mdatasub)
+mdatasub$doubsimFitted <- round(fitted(doubSim),0)
+mdatasubmat7 <- dcast(mdatasub, Orig_code ~ Dest_code, sum, value.var = "doubsimFitted", margins=c("Orig_code", "Dest_code"))
+
+# fit the model
+ggplot(data=mdatasub, 
+       aes(y = `Flow`, 
+           x = `doubsimFitted`))+
+  geom_point(color="black", fill="light blue")
+postResample(mdatasub$Flow,mdatasub$doubsimFitted)
+```
+
+R square now reaches 0.87. Doubly constrained model works the best in this case.
+
+
+Distill is a publication format for scientific and technical writing, native to the web.
+
+Learn more about using Distill at <https://rstudio.github.io/distill>.
+
+
