@@ -1,0 +1,246 @@
+---
+title: "hands-on-exercise-11"
+description: |
+  Modelling Geographic Accessibility.
+author:
+  - name: Xu Pengtai
+    url: https://www.linkedin.com/in/xupengtai/
+date: 11-01-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      error = FALSE,
+                      fig.retina = 3)
+```
+
+
+## Getting Started
+create a list of R packages required
+
+```{r echo=TRUE, eval=TRUE}
+packages <- c('tmap', 'tidyverse',
+             'sp', 'SpatialAcc',
+             'sf', 'ggstatsplot',
+             'reshape2', 'broom')
+for (p in packages) {
+  if (!require(p, character.only = T)) {
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+
+```
+
+## Import geospatial data into r environment
+```{r echo=TRUE, eval=TRUE}
+mpsz <- st_read(dsn = "data/geospatial", layer = "MP14_SUBZONE_NO_SEA_PL")
+hexagons <- st_read(dsn = "data/geospatial", layer = "hexagons") 
+eldercare <- st_read(dsn = "data/geospatial", layer = "ELDERCARE") 
+```
+
+## Data wrangling for geospatial data
+```{r echo=TRUE, eval=TRUE}
+# update CRS info
+mpsz <- st_transform(mpsz, 3414)
+eldercare <- st_transform(eldercare, 3414)
+hexagons <- st_transform(hexagons, 3414)
+
+# clean and update attribute fields
+eldercare <- eldercare %>%
+  select(fid, ADDRESSPOS) %>%
+  mutate(capacity = 100)
+hexagons <- hexagons %>%
+  select(fid) %>%
+  mutate(demand = 100)
+```
+
+## Data import and wrangling for aspatial data
+```{r echo=TRUE, eval=TRUE}
+ODMatrix <- read_csv("data/aspatial/OD_Matrix.csv", skip = 0)
+
+# wrangling
+distmat <- ODMatrix %>%
+  select(origin_id, destination_id, total_cost) %>%
+  spread(destination_id, total_cost)%>%
+  select(c(-c('origin_id')))
+distmat_km<-as.matrix(distmat/1000)
+```
+
+## Modelling and visualising accessibility using Hansen method
+```{r echo=TRUE, eval=TRUE}
+# modelling
+acc_Hansen <- data.frame(ac(hexcen$demand,
+                            eldercare$capacity,
+                            distmat_km, 
+                            d0 = 50,
+                            power = 2, 
+                            family = "Hansen"))
+
+colnames(acc_Hansen) <- "accHansen"
+acc_Hansen <- tbl_df(acc_Hansen)
+hexagon_Hansen <- bind_cols(hexagons, acc_Hansen)
+acc_Hansen <- data.frame(ac(hexagons$demand,
+                            eldercare$capacity,
+                            distmat_km, 
+                            d0 = 50,
+                            power = 2, 
+                            family = "Hansen"))
+
+colnames(acc_Hansen) <- "accHansen"
+acc_Hansen <- tbl_df(acc_Hansen)
+hexagon_Hansen <- bind_cols(hexagons, acc_Hansen)
+
+# visualising
+mapex <- st_bbox(hexagons)
+tmap_mode("plot")
+tm_shape(hexagon_Hansen,
+         bbox = mapex) + 
+  tm_fill(col = "accHansen",
+          n = 10,
+          style = "quantile",
+          border.col = "black",
+          border.lwd = 1) +
+tm_shape(eldercare) +
+  tm_symbols(size = 0.1) +
+  tm_layout(main.title = "Accessibility to eldercare: Hansen method",
+            main.title.position = "center",
+            main.title.size = 2,
+            legend.outside = FALSE,
+            legend.height = 0.45, 
+            legend.width = 3.0,
+            legend.format = list(digits = 6),
+            legend.position = c("right", "top"),
+            frame = TRUE) +
+  tm_compass(type="8star", size = 2) +
+  tm_scale_bar(width = 0.15) +
+  tm_grid(lwd = 0.1, alpha = 0.5)
+```
+## Statistical graphic visualisation
+```{r echo=TRUE, eval=TRUE}
+hexagon_Hansen <- st_join(hexagon_Hansen, mpsz, 
+                          join = st_intersects)
+ggplot(data=hexagon_Hansen, 
+       aes(y = log(accHansen), 
+           x= REGION_N)) +
+  geom_boxplot() +
+  geom_point(stat="summary", 
+             fun.y="mean", 
+             colour ="red", 
+             size=2)
+```
+## Modelling and visualising accessibility using KD2SFCA method
+```{r echo=TRUE, eval=TRUE}
+# modelling
+acc_KD2SFCA <- data.frame(ac(hexagons$demand,
+                            eldercare$capacity,
+                            distmat_km, 
+                            d0 = 50,
+                            power = 2, 
+                            family = "KD2SFCA"))
+
+colnames(acc_KD2SFCA) <- "accKD2SFCA"
+acc_KD2SFCA <- tbl_df(acc_KD2SFCA)
+hexagon_KD2SFCA <- bind_cols(hexagons, acc_KD2SFCA)
+
+# visualising
+tmap_mode("plot")
+tm_shape(hexagon_KD2SFCA,
+         bbox = mapex) + 
+  tm_fill(col = "accKD2SFCA",
+          n = 10,
+          style = "quantile",
+          border.col = "black",
+          border.lwd = 1) +
+tm_shape(eldercare) +
+  tm_symbols(size = 0.1) +
+  tm_layout(main.title = "Accessibility to eldercare: KD2SFCA method",
+            main.title.position = "center",
+            main.title.size = 2,
+            legend.outside = FALSE,
+            legend.height = 0.45, 
+            legend.width = 3.0,
+            legend.format = list(digits = 6),
+            legend.position = c("right", "top"),
+            frame = TRUE) +
+  tm_compass(type="8star", size = 2) +
+  tm_scale_bar(width = 0.15) +
+  tm_grid(lwd = 0.1, alpha = 0.5)
+```
+## Statistical graphic visualisation
+```{r echo=TRUE, eval=TRUE}
+hexagon_KD2SFCA <- st_join(hexagon_KD2SFCA, mpsz, 
+                          join = st_intersects)
+ggplot(data=hexagon_KD2SFCA, 
+       aes(y = accKD2SFCA, 
+           x= REGION_N)) +
+  geom_boxplot() +
+  geom_point(stat="summary", 
+             fun.y="mean", 
+             colour ="red", 
+             size=2)
+```
+## Modelling and visualising accessibility using Spatial Accessibility Measure (SAM) method
+```{r echo=TRUE, eval=TRUE}
+# modelling
+acc_SAM <- data.frame(ac(hexagons$demand,
+                         eldercare$capacity,
+                         distmat_km, 
+                         d0 = 50,
+                         power = 2, 
+                         family = "SAM"))
+
+colnames(acc_SAM) <- "accSAM"
+acc_SAM <- tbl_df(acc_SAM)
+hexagon_SAM <- bind_cols(hexagons, acc_SAM)
+
+# visualising
+tmap_mode("plot")
+tm_shape(hexagon_SAM,
+         bbox = mapex) + 
+  tm_fill(col = "accSAM",
+          n = 10,
+          style = "quantile",
+          border.col = "black",
+          border.lwd = 1) +
+tm_shape(eldercare) +
+  tm_symbols(size = 0.1) +
+  tm_layout(main.title = "Accessibility to eldercare: SAM method",
+            main.title.position = "center",
+            main.title.size = 2,
+            legend.outside = FALSE,
+            legend.height = 0.45, 
+            legend.width = 3.0,
+            legend.format = list(digits = 3),
+            legend.position = c("right", "top"),
+            frame = TRUE) +
+  tm_compass(type="8star", size = 2) +
+  tm_scale_bar(width = 0.15) +
+  tm_grid(lwd = 0.1, alpha = 0.5)
+```
+## Statistical graphic visualisation
+```{r echo=TRUE, eval=TRUE}
+hexagon_SAM <- st_join(hexagon_SAM, mpsz, 
+                       join = st_intersects)
+ggplot(data=hexagon_SAM, 
+       aes(y = accSAM, 
+           x= REGION_N)) +
+  geom_boxplot() +
+  geom_point(stat="summary", 
+             fun.y="mean", 
+             colour ="red", 
+             size=2)
+```
+
+Distill is a publication format for scientific and technical writing, native to the web.
+
+Learn more about using Distill at <https://rstudio.github.io/distill>.
+
+
