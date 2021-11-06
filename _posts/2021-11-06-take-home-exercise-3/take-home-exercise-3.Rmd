@@ -1,0 +1,237 @@
+---
+title: "take-home-exercise-3"
+description: |
+  Geospatially Weighted Regression on HDB Resale Price.
+author:
+  - name: Xu Pengtai
+    url: https://www.linkedin.com/in/xupengtai/
+date: 11-06-2021
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+## Getting Started
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      eval = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      error = FALSE,
+                      fig.retina = 3)
+```
+
+```{r echo=TRUE, eval=TRUE}
+packages <- c('olsrr', 'GWmodel', 'tmap', 'sf', 'corrplot', 'tidyverse', 'ggpubr', 'spdep')
+for (p in packages) {
+  if (!require(p, character.only = T)) {
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Import geospatial data into r environment
+```{r echo=TRUE, eval=TRUE}
+mpsz = st_read(dsn = "data/geospatial", layer = "MP14_SUBZONE_WEB_PL")
+```
+
+update CRS information with the correct ESPG code
+```{r echo=TRUE, eval=TRUE}
+mpsz_svy21 <- st_transform(mpsz, 3414)
+```
+
+
+## Import aspatial data into r environment
+```{r echo=TRUE, eval=TRUE}
+hdb_resale = read_csv("data/aspatial/resale-flat-prices-based-on-registration-date-from-jan-2017-onwards.csv")
+hdb_resale[1:5,]
+```
+
+### Data Wrangling
+
+use an additional dataset to get the postcode of the flats
+```{r echo=TRUE, eval=TRUE}
+zipcode = read_csv("data/aspatial/sg_zipcode_mapper.csv")
+zipcode <- zipcode[,c("road_name", "postal...1")]
+
+# rename zipcode cols
+names(zipcode)[names(zipcode) == "road_name"] <- "street_name"
+names(zipcode)[names(zipcode) == "postal...1"] <- "post_code"
+
+# formatting the street names before joining
+zipcode[,c("street_name")] <- lapply(zipcode[,c("street_name")], gsub, pattern = "ROAD", replacement = "RD", fixed = TRUE)
+zipcode[,c("street_name")] <- lapply(zipcode[,c("street_name")], gsub, pattern = "STREET", replacement = "ST", fixed = TRUE)
+zipcode[,c("street_name")] <- lapply(zipcode[,c("street_name")], gsub, pattern = "AVENUE", replacement = "AVE", fixed = TRUE)
+zipcode[,c("street_name")] <- lapply(zipcode[,c("street_name")], gsub, pattern = "CRESCENT", replacement = "CRES", fixed = TRUE)
+zipcode[,c("street_name")] <- lapply(zipcode[,c("street_name")], gsub, pattern = "DRIVE", replacement = "DR", fixed = TRUE)
+
+# join to get post code for hdb flats
+hdb_resale_pos = merge(x = hdb_resale, y = zipcode, by = "street_name", all.x = TRUE)
+hdb_resale_pos = hdb_resale_pos [!duplicated(hdb_resale_pos[c(1,10)]),]
+
+# use the post code to get the proxy info from conda resale data
+condo_resale = read_csv("data/aspatial/Condo_resale_2015.csv")
+
+useful <- c("LATITUDE", "LONGITUDE", "POSTCODE", "PROX_CBD","PROX_CHILDCARE","PROX_ELDERLYCARE",    
+"PROX_URA_GROWTH_AREA","PROX_HAWKER_MARKET","PROX_KINDERGARTEN", "PROX_MRT","PROX_PARK",  "PROX_PRIMARY_SCH","PROX_TOP_PRIMARY_SCH","PROX_SHOPPING_MALL","PROX_SUPERMARKET","PROX_BUS_STOP") 
+
+# get useful attributes from condo resale data
+condo_resale <- condo_resale[,useful]
+names(condo_resale)[names(condo_resale) == "POSTCODE"] <- "post_code"
+hdb = merge(x = hdb_resale_pos, y = condo_resale, by = "post_code", all.x = TRUE)
+hdb = hdb[complete.cases(hdb), ]
+
+# filter for transaction period from 1st January 2019 to 30th September 2020
+hdb$Date <- as.Date(paste(hdb$month, '01'), '%Y-%m %d')
+hdb = hdb %>%
+ filter(Date >= as.Date("2019-01-01")) %>%
+  filter(Date <= as.Date("2020-09-30"))
+
+```
+
+
+
+converting aspatial data frame into a sf object
+```{r echo=TRUE, eval=TRUE}
+hdb.sf <- st_as_sf(hdb,
+                  coords = c("LONGITUDE", "LATITUDE"),
+                  crs=4326) %>%
+  st_transform(crs=3414)
+head(hdb.sf)
+```
+
+
+## EDA
+```{r echo=TRUE, eval=TRUE}
+
+PROX_CBD <- ggplot(data=hdb.sf, aes(x= `PROX_CBD`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_CHILDCARE <- ggplot(data=hdb.sf, aes(x= `PROX_CHILDCARE`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_ELDERLYCARE <- ggplot(data=hdb.sf, aes(x= `PROX_ELDERLYCARE`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_URA_GROWTH_AREA <- ggplot(data=hdb.sf, aes(x= `PROX_URA_GROWTH_AREA`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_HAWKER_MARKET <- ggplot(data=hdb.sf, aes(x= `PROX_HAWKER_MARKET`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_KINDERGARTEN <- ggplot(data=hdb.sf, aes(x= `PROX_KINDERGARTEN`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_MRT <- ggplot(data=hdb.sf, aes(x= `PROX_MRT`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_PARK <- ggplot(data=hdb.sf, aes(x= `PROX_PARK`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_PRIMARY_SCH <- ggplot(data=hdb.sf, aes(x= `PROX_PRIMARY_SCH`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+PROX_TOP_PRIMARY_SCH <- ggplot(data=hdb.sf, aes(x= `PROX_TOP_PRIMARY_SCH`)) +
+  geom_histogram(bins=20, color="black", fill="light blue")
+
+ggarrange(PROX_CBD, PROX_CHILDCARE, PROX_ELDERLYCARE, PROX_URA_GROWTH_AREA, PROX_HAWKER_MARKET, PROX_KINDERGARTEN, PROX_MRT, PROX_PARK, PROX_PRIMARY_SCH, PROX_TOP_PRIMARY_SCH,  ncol = 3, nrow = 4)
+```
+
+## Building Hedonic Pricing Models using GWmodel
+
+### assumption checks
+```{r echo=TRUE, eval=TRUE}
+hdb.mlr1 <- lm(formula = resale_price ~ floor_area_sqm + lease_commence_date + PROX_CBD + PROX_CHILDCARE + PROX_ELDERLYCARE  + PROX_URA_GROWTH_AREA + PROX_MRT  + PROX_PARK  + PROX_PRIMARY_SCH + PROX_SHOPPING_MALL  + PROX_BUS_STOP, data=hdb.sf)
+ols_regress(hdb.mlr1)
+```
+
+multicolinearity
+```{r echo=TRUE, eval=TRUE}
+ols_vif_tol(hdb.mlr1)
+```
+we remove variables with large VIF values: PROX_CBD, PROX_ELDERLYCARE, PROX_URA_GROWTH_AREA, PROX_PRIMARY_SCH, PROX_SHOPPING_MALL
+
+```{r echo=TRUE, eval=TRUE}
+hdb.mlr1 <- lm(formula = resale_price ~ floor_area_sqm + lease_commence_date +  PROX_CHILDCARE + PROX_MRT  + PROX_PARK + PROX_BUS_STOP, data=hdb.sf)
+ols_regress(hdb.mlr1)
+ols_vif_tol(hdb.mlr1)
+```
+Now the VIF of the independent variables are less than 10. We can safely conclude that there are no sign of multicollinearity among the independent variables.
+
+normality
+```{r echo=TRUE, eval=TRUE}
+ols_plot_resid_hist(hdb.mlr1)
+ols_test_normality(hdb.mlr1)
+```
+The summary table above reveals that the p-values of the majority of the tests are way smaller than the alpha value of 0.05. Hence we will reject the null hypothesis that the residual is NOT resemble normal distribution.
+
+autocorrelation
+```{r echo=TRUE, eval=TRUE}
+hdb.res.sf <- cbind(hdb.sf, 
+                        hdb.mlr1$residuals) %>%
+rename(`MLR_RES` = `hdb.mlr1.residuals`)
+hdb.sp <- as_Spatial(hdb.res.sf)
+nb <- dnearneigh(coordinates(hdb.sp), 0, 1500, longlat = FALSE)
+nb_lw <- nb2listw(nb, style = 'W')
+lm.morantest(hdb.mlr1, nb_lw)
+```
+The Global Moran’s I test for residual spatial autocorrelation shows that it’s p-value is less than 0.00000000000000022 which is less than the alpha value of 0.05. Hence, we will reject the null hypothesis that the residuals are randomly distributed.
+
+Since the Observed Global Moran I = 0.7244922063 which is greater than 0, we can infer than the residuals resemble cluster distribution.
+
+
+### Fixed Bandwidth GWR Model
+```{r echo=TRUE, eval=TRUE}
+hdb.sp <- as_Spatial(hdb.sf)
+bw.fixed <- bw.gwr(formula = resale_price ~ floor_area_sqm + lease_commence_date +
+PROX_CHILDCARE + PROX_MRT + PROX_PARK + PROX_BUS_STOP, data = hdb.sp, approach="CV", kernel="gaussian", adaptive=FALSE, longlat=FALSE)
+
+gwr.fixed <- gwr.basic(formula = resale_price ~ floor_area_sqm + lease_commence_date +
+PROX_CHILDCARE + PROX_MRT + PROX_PARK + PROX_BUS_STOP, data = hdb.sp, bw=bw.fixed, kernel = 'gaussian', longlat = FALSE)
+
+
+gwr.fixed
+```
+
+### Adaptive Bandwidth GWR Model
+```{r echo=TRUE, eval=TRUE}
+bw.adaptive <- bw.gwr(formula = resale_price ~ floor_area_sqm + lease_commence_date +
+PROX_CHILDCARE + PROX_MRT + PROX_PARK + PROX_BUS_STOP, data = hdb.sp, approach="CV", kernel="gaussian", adaptive=TRUE, longlat=FALSE)
+
+gwr.adaptive <- gwr.basic(formula = resale_price ~ floor_area_sqm + lease_commence_date +
+PROX_CHILDCARE + PROX_MRT + PROX_PARK + PROX_BUS_STOP, data = hdb.sp, bw=bw.adaptive, kernel = 'gaussian', adaptive=TRUE, longlat = FALSE)
+
+gwr.adaptive
+```
+
+Fixed bandwidth (Adjusted R-square value = 0.95017) performs bettert than adaptive 
+bandwidth (Adjusted R-square value = 0.93246) in this case. 
+
+Based on the results of fixed bandwidth, all variables are significant except PROX_BUS_STOP. 
+
+## Visualisig local R2
+```{r echo=TRUE, eval=TRUE}
+hdb.sf.fixed <- st_as_sf(gwr.fixed$SDF) %>%
+  st_transform(crs=3414)
+hdb.sf.fixed.svy21 <- st_transform(hdb.sf.fixed, 3414)
+gwr.fixed.output <- as.data.frame(gwr.fixed$SDF)
+hdb.sf.fixed <- cbind(hdb.res.sf, as.matrix(gwr.fixed.output))
+
+tmap_mode("view")
+tm_shape(mpsz_svy21)+
+  tm_polygons(alpha = 0.1) +
+tm_shape(hdb.sf.fixed) +  
+  tm_dots(col = "Local_R2",
+          border.col = "gray60",
+          border.lwd = 1) +
+  tm_view(set.zoom.limits = c(11,14)) +
+  tmap_options(check.and.fix = TRUE)
+```
+
+
+Distill is a publication format for scientific and technical writing, native to the web.
+
+Learn more about using Distill at <https://rstudio.github.io/distill>.
+
+
